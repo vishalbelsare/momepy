@@ -56,30 +56,6 @@ installing using pip only::
     pip install momepy
 
 
-Using Docker
-------------
-
-You can also use `Dockerfile <https://github.com/pysal/momepy/tree/main/environments>`_
-to build minimal a environment for momepy, or
-get the official image from Docker Hub::
-
-    docker pull martinfleis/momepy:<version>
-
-For example::
-
-    docker pull martinfleis/momepy:0.4
-
-Note that images are available from version 0.4.
-
-See more in the
-`ReadMe <https://github.com/pysal/momepy/blob/main/environments/Readme.md>`_
-
-If you need the full stack of geospatial Python libraries, use `darribas/gds_env <https://darribas.org/gds_env/>`_
-which provides the updated platform for Geographic Data Science (including momepy)::
-
-    docker pull darribas/gds_py
-
-
 Install from the repository
 ---------------------------
 
@@ -93,14 +69,14 @@ installing momepy from local directory::
 
 Alternatively, you can install the latest version directly from GitHub::
 
-    pip install git+git://github.com/pysal/momepy.git
+    pip install git+https://github.com/pysal/momepy.git
 
 Installing directly from repository might face the same dependency issues as
 described above regarding installing using pip. To ensure that environment is
 properly prepared and every dependency will work as intended, you can install
 them using conda before installing development version of momepy::
 
-    conda install -c conda-forge geopandas networkx libpysal tqdm pygeos
+    conda install -c conda-forge geopandas networkx libpysal tqdm
 
 
 Dependencies
@@ -108,27 +84,32 @@ Dependencies
 
 Required dependencies:
 
-- `geopandas`_ (>= 0.8.0)
-- `libpysal`_ (>= 4.1.0)
+- `geopandas`_ (>= 0.12.0)
+- `libpysal`_ (>= 4.12.0)
 - `networkx`_
 - `tqdm`_
-- `pygeos`_
 
 Some functions also depend on additional packages, which are optional:
 
 - `mapclassify`_ (>= 2.4.2)
 - `inequality`_
+- `numba`_
+- `esda`_
 
 
 .. _geopandas: https://geopandas.org/
 
 .. _mapclassify: http://pysal.org/mapclassify
 
+.. _esda: http://pysal.org/esda
+
 .. _libpysal: http://pysal.org/libpysal
 
-.. _inequality: https://inequality.readthedocs.io
+.. _inequality: http://pysal.org/inequality
 
 .. _networkx: http://networkx.github.io
+
+.. _numba: https://numba.pydata.org
 
 .. _tqdm: http://networkx.github.io
 
@@ -138,4 +119,3 @@ Some functions also depend on additional packages, which are optional:
 
 .. _conda: https://conda.io/en/latest/
 
-.. _pygeos: http://pygeos.readthedocs.org

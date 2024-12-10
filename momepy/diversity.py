@@ -1,13 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # diversity.py
 # definitions of diversity characters
 
+import warnings
+
 import numpy as np
 import pandas as pd
 import scipy as sp
+from numpy.lib import NumpyVersion
 from tqdm.auto import tqdm  # progress bar
+
+from .utils import deprecated, removed
 
 __all__ = [
     "Range",
@@ -22,10 +26,10 @@ __all__ = [
 ]
 
 
+@deprecated("values_range")
 class Range:
     """
     Calculates the range of values within neighbours defined in ``spatial_weights``.
-
     Uses ``scipy.stats.iqr`` under the hood.
 
     Adapted from :cite:`dibble2017`.
@@ -33,38 +37,41 @@ class Range:
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where is
-        stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights
-        spatial weights matrix
+        A spatial weights matrix.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
-    rng : Two-element sequence containing floats in range of [0,100], optional
-        Percentiles over which to compute the range. Each must be
-        between 0 and 100, inclusive. The order of the elements is not important.
-    **kwargs : keyword arguments
-        optional arguments for ``scipy.stats.iqr``
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
+    **kwargs : dict
+        Optional arguments for ``scipy.stats.iqr``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
-    rng : tuple
-        range
+        A Series containing used unique ID.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
     kwargs : dict
-        kwargs
+        Optional arguments for ``scipy.stats.iqr``.
 
     Examples
     --------
@@ -75,8 +82,6 @@ class Range:
     ...                                               'uID',
     ...                                               rng=(25, 75)).series
     100%|██████████| 144/144 [00:00<00:00, 722.50it/s]
-
-
     """
 
     def __init__(
@@ -96,17 +101,16 @@ class Range:
         self.kwargs = kwargs
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         data = data.set_index(unique_id)[values]
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = [index]
                 neighbours += spatial_weights.neighbors[index]
 
@@ -118,49 +122,55 @@ class Range:
         self.series = pd.Series(results_list, index=gdf.index)
 
 
+@deprecated("theil")
 class Theil:
     """
     Calculates the Theil measure of inequality of values within neighbours defined in
-    ``spatial_weights``.
-
-    Uses ``inequality.theil.Theil`` under the hood. Requires '`inequality`' package.
+    ``spatial_weights``. Uses ``inequality.theil.Theil`` under the hood.
+    Requires '`inequality`' package.
 
     .. math::
 
-        T = \sum_{i=1}^n \left( \\frac{y_i}{\sum_{i=1}^n y_i} \ln \left[ N \\frac{y_i}
-        {\sum_{i=1}^n y_i}\\right] \\right)
+        T = \\sum_{i=1}^n \\left(
+            \\frac{y_i}{\\sum_{i=1}^n y_i} \\ln \\left[
+                N \\frac{y_i} {\\sum_{i=1}^n y_i}
+            \\right]
+        \\right)
 
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where is
-        stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights
-        spatial weights matrix
+        A spatial weights matrix.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
-    rng : Two-element sequence containing floats in range of [0,100], optional
-        Percentiles over which to compute the range. Each must be
-        between 0 and 100, inclusive. The order of the elements is not important.
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
-    rng : tuple, optional
-        range
+        A Series containing used unique ID.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
 
     Examples
     --------
@@ -175,8 +185,8 @@ class Theil:
     def __init__(self, gdf, values, spatial_weights, unique_id, rng=None, verbose=True):
         try:
             from inequality.theil import Theil
-        except ImportError:
-            raise ImportError("The 'inequality' package is required.")
+        except ImportError as err:
+            raise ImportError("The 'inequality' package is required.") from err
 
         self.gdf = gdf
         self.sw = spatial_weights
@@ -184,10 +194,9 @@ class Theil:
         self.rng = rng
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         data = data.set_index(unique_id)[values]
@@ -197,14 +206,14 @@ class Theil:
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = [index]
                 neighbours += spatial_weights.neighbors[index]
 
                 values_list = data.loc[neighbours]
 
                 if rng:
-                    values_list = limit_range(values_list, rng=rng)
+                    values_list = limit_range(values_list.values, rng=rng)
                 results_list.append(Theil(values_list).T)
             else:
                 results_list.append(np.nan)
@@ -212,13 +221,12 @@ class Theil:
         self.series = pd.Series(results_list, index=gdf.index)
 
 
+@deprecated("simpson")
 class Simpson:
     """
-    Calculates the Simpson\'s diversity index of values within neighbours defined in
-    ``spatial_weights``.
-
-    Uses ``mapclassify.classifiers`` under the hood for binning. Requires
-    ``mapclassify>=.2.1.0`` dependency.
+    Calculates the Simpson's diversity index of values within neighbours defined in
+    ``spatial_weights``. Uses ``mapclassify.classifiers`` under the hood for binning.
+    Requires ``mapclassify>=.2.1.0`` dependency.
 
     .. math::
 
@@ -229,48 +237,49 @@ class Simpson:
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where is
-        stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights, optional
-        spatial weights matrix - If None, Queen contiguity matrix of set order will be
-        calculated based on objects.
+        A spatial weights matrix. If ``None``, Queen contiguity
+        matrix of set order will be calculated based on objects.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
     binning : str (default 'HeadTailBreaks')
         One of mapclassify classification schemes. For details see
         `mapclassify API documentation <http://pysal.org/mapclassify/api.html>`_.
     gini_simpson : bool (default False)
-        return Gini-Simpson index instead of Simpson index (``1 - λ``)
+        Return Gini-Simpson index instead of Simpson index (``1 - λ``).
     inverse : bool (default False)
-        return Inverse Simpson index instead of Simpson index (``1 / λ``)
+        Return Inverse Simpson index instead of Simpson index (``1 / λ``).
     categorical : bool (default False)
-        treat values as categories (will not use ``binning``)
+        Treat values as categories (will not use ``binning``).
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
     **classification_kwds : dict
-        Keyword arguments for classification scheme
+        Keyword arguments for the classification scheme.
         For details see `mapclassify documentation <https://pysal.org/mapclassify>`_.
 
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
+        A Series containing used unique ID.
     binning : str
-        binning method
+        The binning method used.
     bins : mapclassify.classifiers.Classifier
-        generated bins
+        The generated bins.
     classification_kwds : dict
-        classification_kwds
+        Keyword arguments for the classification scheme.
+        For details see `mapclassify documentation <https://pysal.org/mapclassify>`_.
 
     Examples
     --------
@@ -283,7 +292,7 @@ class Simpson:
 
     See also
     --------
-    momepy.simpson_diversity : Calculates the Simpson\'s diversity index of data
+    momepy.simpson_diversity : Calculates the Simpson's diversity index of data.
     """
 
     def __init__(
@@ -296,15 +305,16 @@ class Simpson:
         gini_simpson=False,
         inverse=False,
         categorical=False,
-        categories=None,
         verbose=True,
         **classification_kwds,
     ):
         if not categorical:
             try:
                 from mapclassify import classify
-            except ImportError:
-                raise ImportError("The 'mapclassify >= 2.4.2` package is required.")
+            except ImportError as err:
+                raise ImportError(
+                    "The 'mapclassify >= 2.4.2` package is required."
+                ) from err
 
         self.gdf = gdf
         self.sw = spatial_weights
@@ -316,10 +326,9 @@ class Simpson:
         self.classification_kwds = classification_kwds
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         data = data.set_index(unique_id)[values]
@@ -331,7 +340,7 @@ class Simpson:
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = [index]
                 neighbours += spatial_weights.neighbors[index]
                 values_list = data.loc[neighbours]
@@ -356,38 +365,37 @@ class Simpson:
 
 def simpson_diversity(values, bins=None, categorical=False):
     """
-    Calculates the Simpson\'s diversity index of data. Helper function for
+    Calculates the Simpson's diversity index of data. Helper function for
     :py:class:`momepy.Simpson`.
 
     .. math::
 
         \\lambda=\\sum_{i=1}^{R} p_{i}^{2}
 
-
     Parameters
     ----------
     values : pandas.Series
-        list of values
+        A list of values.
     bins : array, optional
-        array of top edges of classification bins.
-        Should be equalt to the result of binnng.bins.
+        An array of top edges of classification bins.
+        Should be equal to the result of ``binning.bins``.
     categorical : bool (default False)
-        treat values as categories (will not use ``bins``)
+        Treat values as categories (will not use ``bins``).
 
     Returns
     -------
     float
-        Simpson's diversity index
+        Simpson's diversity index.
 
     See also
     --------
-    momepy.Simpson : Calculates the Simpson\'s diversity index
+    momepy.Simpson : Calculates the Simpson's diversity index.
     """
     if not categorical:
         try:
             import mapclassify as mc
-        except ImportError:
-            raise ImportError("The 'mapclassify' package is required")
+        except ImportError as err:
+            raise ImportError("The 'mapclassify' package is required") from err
 
     if categorical:
         counts = values.value_counts()
@@ -396,51 +404,52 @@ def simpson_diversity(values, bins=None, categorical=False):
         sample_bins = mc.UserDefined(values, bins)
         counts = sample_bins.counts
 
-    N = sum(counts)
-
-    return sum((n / N) ** 2 for n in counts if n != 0)
+    return sum((n / sum(counts)) ** 2 for n in counts if n != 0)
 
 
+@deprecated("gini")
 class Gini:
     """
     Calculates the Gini index of values within neighbours defined in
-    ``spatial_weights``.
-
-    Uses ``inequality.gini.Gini`` under the hood. Requires '`inequality`' package.
+    ``spatial_weights``. Uses ``inequality.gini.Gini`` under the hood.
+    Requires '`inequality`' package.
 
     .. math::
 
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where is
-        stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights
-        spatial weights matrix
+        A spatial weights matrix.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
-    rng : Two-element sequence containing floats in range of [0,100], optional
-        Percentiles over which to compute the range. Each must be
-        between 0 and 100, inclusive. The order of the elements is not important.
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
-    rng : tuple
-        range
+        A Series containing used unique ID.
+    rng : tuple, list, optional (default None)
+        A two-element sequence containing floats between 0 and 100 (inclusive)
+        that are the percentiles over which to compute the range.
+        The order of the elements is not important.
 
     Examples
     --------
@@ -455,8 +464,8 @@ class Gini:
     def __init__(self, gdf, values, spatial_weights, unique_id, rng=None, verbose=True):
         try:
             from inequality.gini import Gini
-        except ImportError:
-            raise ImportError("The 'inequality' package is required.")
+        except ImportError as err:
+            raise ImportError("The 'inequality' package is required.") from err
 
         self.gdf = gdf
         self.sw = spatial_weights
@@ -464,10 +473,9 @@ class Gini:
         self.rng = rng
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         if self.values.min() < 0:
@@ -483,7 +491,7 @@ class Gini:
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = spatial_weights.neighbors[index].copy()
                 if neighbours:
                     neighbours.append(index)
@@ -501,13 +509,12 @@ class Gini:
         self.series = pd.Series(results_list, index=gdf.index)
 
 
+@deprecated("shannon")
 class Shannon:
     """
     Calculates the Shannon index of values within neighbours defined in
-    ``spatial_weights``.
-
-    Uses ``mapclassify.classifiers`` under the hood for binning.
-    Requires ``mapclassify>=.2.1.0`` dependency.
+    ``spatial_weights``. Uses ``mapclassify.classifiers`` under the hood
+    for binning. Requires ``mapclassify>=.2.1.0`` dependency.
 
     .. math::
 
@@ -516,24 +523,24 @@ class Shannon:
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where
-        is stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights, optional
-        spatial weights matrix - If None, Queen contiguity matrix of set order
-        will be calculated based on objects.
+        A spatial weights matrix. If ``None``, Queen contiguity
+        matrix of set order will be calculated based on objects.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
     binning : str
         One of mapclassify classification schemes. For details see
         `mapclassify API documentation <http://pysal.org/mapclassify/api.html>`_.
     categorical : bool (default False)
-        treat values as categories (will not use binning)
+        Treat values as categories (will not use binning).
     categories : list-like (default None)
-        list of categories. If None values.unique() is used.
+        A list of categories. If ``None``, ``values.unique()`` is used.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
     **classification_kwds : dict
         Keyword arguments for classification scheme
         For details see `mapclassify documentation <https://pysal.org/mapclassify>`_.
@@ -541,21 +548,22 @@ class Shannon:
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
+        A Series containing used unique ID.
     binning : str
-        binning method
+        The binning method used.
     bins : mapclassify.classifiers.Classifier
-        generated bins
+        The generated bins.
     classification_kwds : dict
-        classification_kwds
+        Keyword arguments for classification scheme
+        For details see `mapclassify documentation <https://pysal.org/mapclassify>`_.
 
     Examples
     --------
@@ -582,8 +590,10 @@ class Shannon:
         if not categorical:
             try:
                 from mapclassify import classify
-            except ImportError:
-                raise ImportError("The 'mapclassify >= 2.4.2` package is required.")
+            except ImportError as err:
+                raise ImportError(
+                    "The 'mapclassify >= 2.4.2` package is required."
+                ) from err
 
         self.gdf = gdf
         self.sw = spatial_weights
@@ -594,10 +604,9 @@ class Shannon:
         self.classification_kwds = classification_kwds
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         data = data.set_index(unique_id)[values]
@@ -612,7 +621,7 @@ class Shannon:
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = [index]
                 neighbours += spatial_weights.neighbors[index]
                 values_list = data.loc[neighbours]
@@ -633,65 +642,62 @@ class Shannon:
 
 def shannon_diversity(data, bins=None, categorical=False, categories=None):
     """
-    Calculates the Shannon\'s diversity index of data. Helper function for
+    Calculates the Shannon's diversity index of data. Helper function for
     :py:class:`momepy.Shannon`.
 
     .. math::
 
         \\lambda=\\sum_{i=1}^{R} p_{i}^{2}
 
-    Formula adapted from https://gist.github.com/audy/783125
+    Formula adapted from https://gist.github.com/audy/783125.
 
     Parameters
     ----------
     data : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     bins : array, optional
-        array of top edges of classification bins. Result of binnng.bins.
+        An array of top edges of classification bins. Result of ``binning.bins``.
     categorical : bool (default False)
-        treat values as categories (will not use ``bins``)
+        tTeat values as categories (will not use ``bins``).
     categories : list-like (default None)
-        list of categories
+        A list of categories.
 
     Returns
     -------
     float
-        Shannon's diversity index
+        Shannon's diversity index.
 
     See also
     --------
-    momepy.Shannon : Calculates the Shannon's diversity index
-    momepy.Simpson : Calculates the Simpson's diversity index
-    momepy.simpson_diversity : Calculates the Simpson's diversity index
+    momepy.Shannon : Calculates the Shannon's diversity index.
+    momepy.Simpson : Calculates the Simpson's diversity index.
+    momepy.simpson_diversity : Calculates the Simpson's diversity index.
     """
     from math import log as ln
 
     if not categorical:
         try:
             import mapclassify as mc
-        except ImportError:
-            raise ImportError("The 'mapclassify' package is required")
+        except ImportError as err:
+            raise ImportError("The 'mapclassify' package is required") from err
 
-    def p(n, N):
+    def p(n, sum_n):
         """Relative abundance"""
         if n == 0:
             return 0
-        return (float(n) / N) * ln(float(n) / N)
+        return (n / sum_n) * ln(n / sum_n)
 
     if categorical:
-        counts = data.value_counts().to_dict()
-        for c in categories:
-            if c not in counts.keys():
-                counts[c] = 0
+        counts = dict.fromkeys(categories, 0)
+        counts.update(data.value_counts())
     else:
         sample_bins = mc.UserDefined(data, bins)
-        counts = dict(zip(bins, sample_bins.counts))
+        counts = dict(zip(bins, sample_bins.counts, strict=True))
 
-    N = sum(counts.values())
-
-    return -sum(p(n, N) for n in counts.values() if n != 0)
+    return -sum(p(n, sum(counts.values())) for n in counts.values() if n != 0)
 
 
+@removed("`.describe()` method of libpysal.graph.Graph")
 class Unique:
     """
     Calculates the number of unique values within neighbours defined in
@@ -703,31 +709,31 @@ class Unique:
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing morphological tessellation
+        A GeoDataFrame containing morphological tessellation.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series`` where
-        is stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights
-        spatial weights matrix
+        A spatial weights matrix.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
     dropna : bool (default True)
-        Don’t include NaN in the counts of unique values.
+        Don’t include ``NaN`` in the counts of unique values.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Attributes
     ----------
     series : Series
-        Series containing resulting values
+        A Series containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
+        A Series containing used unique ID.
 
     Examples
     --------
@@ -747,17 +753,16 @@ class Unique:
         self.id = gdf[unique_id]
 
         data = gdf.copy()
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         data = data.set_index(unique_id)[values]
 
         results_list = []
         for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-            if index in spatial_weights.neighbors.keys():
+            if index in spatial_weights.neighbors:
                 neighbours = [index]
                 neighbours += spatial_weights.neighbors[index]
 
@@ -769,24 +774,25 @@ class Unique:
         self.series = pd.Series(results_list, index=gdf.index)
 
 
+@deprecated("percentile")
 class Percentiles:
     """
-    Calculates the percentiles of values within neighbours defined in
-    ``spatial_weights``.
+    Calculates the percentiles of values within
+    neighbours defined in ``spatial_weights``.
 
     Parameters
     ----------
     gdf : GeoDataFrame
-        GeoDataFrame containing source geometry
+        A GeoDataFrame containing source geometry.
     values : str, list, np.array, pd.Series
-        the name of the dataframe column, ``np.array``, or ``pd.Series``
-        where is stored character value.
+        The name of the dataframe column, ``np.array``, or ``pd.Series``
+        where character values are stored.
     spatial_weights : libpysal.weights
-        spatial weights matrix
+        A spatial weights matrix.
     unique_id : str
-        name of the column with unique id used as ``spatial_weights`` index
+        The name of the column with unique IDs used as the ``spatial_weights`` index.
     percentiles : array-like (default [25, 50, 75])
-        percentiles to return
+        The percentiles to return.
     interpolation : {'linear', 'lower', 'higher', 'midpoint', 'nearest'}
         This optional parameter specifies the interpolation method to
         use when the desired percentile lies between two data points
@@ -801,25 +807,25 @@ class Percentiles:
         See the documentation of ``numpy.percentile`` for details.
 
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
     weighted : {'linear', None} (default None)
-        Distance decay weighting. If None, each neighbor within
-        `spatial_weights` has equal weight. If `linear`, linear
+        Distance decay weighting. If ``None``, each neighbor within
+        ``spatial_weights`` has equal weight. If ``'linear'``, linear
         inverse distance between centroids is used as a weight.
 
 
     Attributes
     ----------
     frame : DataFrame
-        DataFrame containing resulting values
+        A DataFrame containing resulting values.
     gdf : GeoDataFrame
-        original GeoDataFrame
+        The original GeoDataFrame.
     values : Series
-        Series containing used values
+        A Series containing used values.
     sw : libpysal.weights
-        spatial weights matrix
+        The spatial weights matrix.
     id : Series
-        Series containing used unique ID
+        A Series containing used unique ID.
 
     Examples
     --------
@@ -848,10 +854,9 @@ class Percentiles:
 
         data = gdf.copy()
 
-        if values is not None:
-            if not isinstance(values, str):
-                data["mm_v"] = values
-                values = "mm_v"
+        if values is not None and not isinstance(values, str):
+            data["mm_v"] = values
+            values = "mm_v"
         self.values = data[values]
 
         results_list = []
@@ -861,9 +866,9 @@ class Percentiles:
             data.geometry = data.centroid
 
             for i, geom in tqdm(
-                data.geometry.iteritems(), total=data.shape[0], disable=not verbose
+                data.geometry.items(), total=data.shape[0], disable=not verbose
             ):
-                if i in spatial_weights.neighbors.keys():
+                if i in spatial_weights.neighbors:
                     neighbours = spatial_weights.neighbors[i]
 
                     vicinity = data.loc[neighbours]
@@ -897,19 +902,25 @@ class Percentiles:
         elif weighted is None:
             data = data.set_index(unique_id)[values]
 
+            if NumpyVersion(np.__version__) >= "1.22.0":
+                method = {"method": interpolation}
+            else:
+                method = {"interpolation": interpolation}
+
             for index in tqdm(data.index, total=data.shape[0], disable=not verbose):
-                if index in spatial_weights.neighbors.keys():
+                if index in spatial_weights.neighbors:
                     neighbours = [index]
                     neighbours += spatial_weights.neighbors[index]
-
                     values_list = data.loc[neighbours]
-                    results_list.append(
-                        np.nanpercentile(
-                            values_list, percentiles, interpolation=interpolation
+                    with warnings.catch_warnings():
+                        warnings.filterwarnings(
+                            "ignore", message="All-NaN slice encountered"
                         )
-                    )
+                        results_list.append(
+                            np.nanpercentile(values_list, percentiles, **method)
+                        )
                 else:
-                    results_list.append(np.nan)
+                    results_list.append(np.array([np.nan] * len(percentiles)))
 
             self.frame = pd.DataFrame(
                 results_list, columns=percentiles, index=gdf.index

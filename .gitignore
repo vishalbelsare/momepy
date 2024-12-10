@@ -65,8 +65,8 @@ instance/
 
 # Sphinx documentation
 docs/_build/
-docs/_templates/
 docs/generated/
+docs/api/
 
 # PyBuilder
 target/
@@ -119,3 +119,4 @@ run/
 .asv
 dask-worker-space
 .DS_Store
+.ruff_cache

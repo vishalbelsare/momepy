@@ -5,6 +5,13 @@ momepy documentation
    :alt: momepy: Urban morphology measuring toolkit
    :align: center
    :width: 50%
+   :class: only-light
+
+.. image:: _static/logo_dark.png
+   :alt: momepy: Urban morphology measuring toolkit
+   :align: center
+   :width: 50%
+   :class: only-dark
 
 Introduction
 ------------
@@ -61,21 +68,8 @@ Examples
 
 .. code:: py
 
-   coverage = momepy.AreaRatio(tessellation, buildings, left_areas=tessellation.area,
-                               right_areas='area', unique_id='uID')
-   tessellation['CAR'] = coverage.series
+   tessellation['area_simpson'] = momepy.simpson(tessellation.area, contiguity_k3)
 
-.. figure:: https://raw.githubusercontent.com/pysal/momepy/main/docs/_static/example1.png
-   :alt: Coverage Area Ratio
-
-   Coverage Area Ratio
-
-.. code:: py
-
-   area_simpson = momepy.Simpson(tessellation, values='area',
-                                 spatial_weights=sw3,
-                                 unique_id='uID')
-   tessellation['area_simpson'] = area_simpson.series
 
 .. figure:: https://raw.githubusercontent.com/pysal/momepy/main/docs/_static/diversity_22_0.png
    :alt: Local Simpson's diversity of area
@@ -136,8 +130,8 @@ Details are available in the :doc:`contributing guide <contributing>`.
 
 Get in touch
 ------------
-If you have a question regarding momepy, feel free to open an issue on GitHub.
-Eventually, you can contact us on dev@momepy.org.
+If you have a question regarding momepy, feel free to open an
+`issue`_, a new `discussion`_ on GitHub or join a chat on `Discord`_.
 
 Acknowledgements
 ----------------
@@ -159,7 +153,7 @@ Documentation contents
    examples/index
    API reference <api>
    Contributing <contributing>
-   changelog
+   Changelog <https://github.com/pysal/momepy/releases>
    references
 
 
@@ -179,3 +173,6 @@ Indices and tables
 .. _Urban Grammar AI: https://urbangrammarai.xyz
 .. _@martinfleis: http://github.org/martinfleis
 .. _@jGaboardi: http://github.org/jGaboardi
+.. _issue: https://github.com/pysal/momepy/issues/new/choose
+.. _discussion: https://github.com/pysal/momepy/discussions
+.. _Discord: https://discord.gg/he6Y8D2ap3

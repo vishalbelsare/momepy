@@ -1,12 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 # connectivity.py
 # definitions of connectivity characters
+import collections
 import math
+from typing import Any
 
 import networkx as nx
 import numpy as np
+from pandas import Series
 from tqdm.auto import tqdm
 
 __all__ = [
@@ -25,27 +27,26 @@ __all__ = [
     "straightness_centrality",
     "subgraph",
     "mean_nodes",
+    "node_density",
 ]
 
 
-def node_degree(graph, name="degree"):
+def node_degree(graph: nx.Graph, name: str = "degree") -> nx.Graph:
     """
-    Calculates node degree for each node.
-
-    Wrapper around ``networkx.degree()``.
+    Calculates node degree for each node. Wrapper around ``networkx.degree()``.
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     name : str (default 'degree')
-        calculated attribute name
+        The calculated attribute name.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object .
 
     Examples
     --------
@@ -59,55 +60,56 @@ def node_degree(graph, name="degree"):
     return netx
 
 
-def _meshedness(graph):
-    """
-    Calculates meshedness of a graph.
-    """
+def _meshedness(graph: nx.Graph) -> float:
+    """Calculates meshedness of a graph."""
     e = graph.number_of_edges()
     v = graph.number_of_nodes()
     return (e - v + 1) / (2 * v - 5)
 
 
-def meshedness(graph, radius=5, name="meshedness", distance=None, verbose=True):
+def meshedness(
+    graph: nx.Graph,
+    radius: int = 5,
+    name: str = "meshedness",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates meshedness for subgraph around each node if radius is set, or for
-    whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in distance
-    attribute.
+    whole graph, if ``radius=None``. A subgraph is generated around each node within
+    set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in distance attribute.
 
     .. math::
         \\alpha=\\frac{e-v+1}{2 v-5}
 
-    where :math:`e` is the number of edges in subgraph and :math:`v` is the number of
-    nodes in subgraph.
+    where :math:`e` is the number of edges in a subgraph and :math:`v`
+    is the number of nodes in a subgraph.
 
     Adapted from :cite:`feliciotti2018`.
-
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int, optional
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        meshedness for graph if ``radius=None``
+        The meshedness for the graph if ``radius=None``.
 
     Examples
     --------
@@ -129,50 +131,48 @@ def meshedness(graph, radius=5, name="meshedness", distance=None, verbose=True):
     return _meshedness(netx)
 
 
-def mean_node_dist(graph, name="meanlen", length="mm_len", verbose=True):
+def mean_node_dist(
+    graph: nx.Graph, name: str = "meanlen", length: str = "mm_len", verbose: bool = True
+) -> nx.Graph:
     """
     Calculates mean distance to neighbouring nodes.
-
     Mean of values in ``length`` attribute.
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     length : str, optional
-        name of attribute of segment length (geographical)
+        The name of the attribute of segment length (geographical).
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
     >>> network_graph = mm.mean_node_dist(network_graph)
-
     """
     netx = graph.copy()
 
     for n, nbrs in tqdm(netx.adj.items(), total=len(netx), disable=not verbose):
         lengths = []
-        for nbr, keydict in nbrs.items():
-            for key, eattr in keydict.items():
+        for _nbr, keydict in nbrs.items():
+            for _key, eattr in keydict.items():
                 lengths.append(eattr[length])
         netx.nodes[n][name] = np.mean(lengths)
 
     return netx
 
 
-def _cds_length(graph, mode, length):
-    """
-    Calculates cul-de-sac length in a graph.
-    """
+def _cds_length(graph: nx.Graph, mode, length):
+    """Calculates cul-de-sac length in a graph."""
     lens = []
     for u, v, k, cds in graph.edges.data("cdsbool", keys=True):
         if cds:
@@ -181,57 +181,54 @@ def _cds_length(graph, mode, length):
         return sum(lens)
     if mode == "mean":
         return np.mean(lens)
-    raise ValueError("Mode {} is not supported. Use 'sum' or 'mean'.".format(mode))
+    raise ValueError(f"Mode '{mode}' is not supported. Use 'sum' or 'mean'.")
 
 
 def cds_length(
-    graph,
-    radius=5,
-    mode="sum",
-    name="cds_len",
-    degree="degree",
-    length="mm_len",
-    distance=None,
-    verbose=True,
-):
+    graph: nx.Graph,
+    radius: int = 5,
+    mode: str = "sum",
+    name: str = "cds_len",
+    degree: str = "degree",
+    length: str = "mm_len",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates length of cul-de-sacs for subgraph around each node if radius is set,
-    or for whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in distance
-    attribute.
+    or for whole graph, if ``radius=None``. A subgraph is generated around each node
+    within set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in distance attribute.
 
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius : int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     mode : str (default 'sum')
-        if ``'sum'``, calculate total length, if ``'mean'`` calculate mean length
+        If ``'sum'``, calculate total length, if ``'mean'`` calculate mean length.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     degree : str
-        name of attribute of node degree (:py:func:`momepy.node_degree`)
+        The name of attribute of node degree (:py:func:`momepy.node_degree`).
     length : str, optional
-        name of attribute of segment length (geographical)
+        The name of the attribute of segment length (geographical).
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
-
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        length of cul-de-sacs for graph if ``radius=None``
+        The length of cul-de-sacs for the graph if ``radius=None``.
 
     Examples
     --------
@@ -260,49 +257,49 @@ def cds_length(
     return _cds_length(netx, mode=mode, length=length)
 
 
-def _mean_node_degree(graph, degree):
-    """
-    Calculates mean node degree in a graph.
-    """
+def _mean_node_degree(graph: nx.Graph, degree):
+    """Calculates mean node degree in a graph."""
     return np.mean(list(dict(graph.nodes(degree)).values()))
 
 
 def mean_node_degree(
-    graph, radius=5, name="mean_nd", degree="degree", distance=None, verbose=True
-):
+    graph: nx.Graph,
+    radius: int = 5,
+    name: str = "mean_nd",
+    degree: str = "degree",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates mean node degree for subgraph around each node if radius is set, or for
-    whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in ``distance``
-    attribute.
-
+    whole graph, if ``radius=None``. A subgraph is generated around each node within
+    set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in ``distance`` attribute.
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        radius defining the extent of subgraph
+        Include all neighbors of distance <= radius from ``n``.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     degree : str
-        name of attribute of node degree (:py:func:`momepy.node_degree`)
+        The name of attribute of node degree (:py:func:`momepy.node_degree`).
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        mean node degree for graph if ``radius=None``
+        The mean node degree for the graph if ``radius=None``.
 
     Examples
     --------
@@ -322,72 +319,68 @@ def mean_node_degree(
     return _mean_node_degree(netx, degree=degree)
 
 
-def _proportion(graph, degree):
-    """
-    Calculates the proportion of intersection types in a graph.
-    """
-    import collections
+def _proportion(graph: nx.Graph, degree):
+    """Calculates the proportion of intersection types in a graph."""
 
-    values = list(dict(graph.nodes(degree)).values())
-    counts = collections.Counter(values)
+    counts = collections.Counter(dict(graph.nodes(degree)).values())
     return counts
 
 
 def proportion(
-    graph,
-    radius=5,
-    three=None,
-    four=None,
-    dead=None,
-    degree="degree",
-    distance=None,
-    verbose=True,
-):
+    graph: nx.Graph,
+    radius: int = 5,
+    three: str | None = None,
+    four: str | None = None,
+    dead: str | None = None,
+    degree: str = "degree",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates the proportion of intersection types for subgraph around each node if
-    radius is set, or for whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in ``distance``
-    attribute.
+    radius is set, or for whole graph, if ``radius=None``. A subgraph is generated
+    around each node within set radius. If ``distance=None``, the radius will define
+    topological distance, otherwise it uses values in ``distance`` attribute.
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     three : str, optional
-        attribute name for 3-way intersections proportion
+        The attribute name for 3-way intersections proportion.
     four : str, optional
-        attribute name for 4-way intersections proportion
+        The attribute name for 4-way intersections proportion.
     dead : str, optional
-        attribute name for deadends proportion
+        The attribute name for deadends proportion.
     degree : str
-        name of attribute of node degree (:py:func:`momepy.node_degree`)
+        The name of attribute of node degree (:py:func:`momepy.node_degree`).
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
-    dict
-        dict with proportions for graph if ``radius=None``
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
+    result : dict
+        A dict with proportions for the graph if ``radius=None``.
 
     Examples
     --------
-    >>> network_graph = mm.proportion(network_graph, three='threeway', four='fourway', dead='deadends')  # noqa
+    >>> network_graph = mm.proportion(
+    ...     network_graph, three='threeway', four='fourway', dead='deadends'
+    ... )  # noqa
     """
     if not three and not four and not dead:
         raise ValueError(
-            "Nothing to calculate. Define names for at least one proportion to be "
-            "calculated."
+            "Nothing to calculate. Define names for at least "
+            "one proportion to be calculated."
         )
     netx = graph.copy()
 
@@ -418,23 +411,25 @@ def proportion(
     return result
 
 
-def _cyclomatic(graph):
-    """
-    Calculates the cyclomatic complexity of a graph.
-    """
+def _cyclomatic(graph: nx.Graph) -> int:
+    """Calculates the cyclomatic complexity of a graph."""
     e = graph.number_of_edges()
     v = graph.number_of_nodes()
     return e - v + 1
 
 
-def cyclomatic(graph, radius=5, name="cyclomatic", distance=None, verbose=True):
+def cyclomatic(
+    graph: nx.Graph,
+    radius: int = 5,
+    name: str = "cyclomatic",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates cyclomatic complexity for subgraph around each node if radius is set, or
-    for whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in ``distance``
-    attribute.
+    for whole graph, if ``radius=None``. A subgraph is generated around each node
+    within set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in ``distance`` attribute.
 
     .. math::
         \\alpha=e-v+1
@@ -447,25 +442,25 @@ def cyclomatic(graph, radius=5, name="cyclomatic", distance=None, verbose=True):
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        cyclomatic complexity for graph if ``radius=None``
+        The cyclomatic complexity for the graph if ``radius=None``.
 
     Examples
     --------
@@ -487,25 +482,25 @@ def cyclomatic(graph, radius=5, name="cyclomatic", distance=None, verbose=True):
     return _cyclomatic(netx)
 
 
-def _edge_node_ratio(graph):
-    """
-    Calculates edge / node ratio of a graph.
-    """
+def _edge_node_ratio(graph: nx.Graph) -> float:
+    """Calculates edge / node ratio of a graph."""
     e = graph.number_of_edges()
     v = graph.number_of_nodes()
     return e / v
 
 
 def edge_node_ratio(
-    graph, radius=5, name="edge_node_ratio", distance=None, verbose=True
-):
+    graph: nx.Graph,
+    radius: int = 5,
+    name: str = "edge_node_ratio",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates edge / node ratio for subgraph around each node if radius is set, or for
-    whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in ``distance``
-    attribute.
+    whole graph, if ``radius=None``. A subgraph is generated around each node within
+    set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in ``distance`` attribute.
 
     .. math::
         \\alpha=e/v
@@ -518,25 +513,25 @@ def edge_node_ratio(
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        edge / node ratio for graph if ``radius=None``
+        The edge / node ratio for the graph if ``radius=None``.
 
     Examples
     --------
@@ -558,10 +553,8 @@ def edge_node_ratio(
     return _edge_node_ratio(netx)
 
 
-def _gamma(graph):
-    """
-    Calculates gamma index of a graph.
-    """
+def _gamma(graph: nx.Graph):
+    """Calculates gamma index of a graph."""
     e = graph.number_of_edges()
     v = graph.number_of_nodes()
     if v == 2:
@@ -569,14 +562,18 @@ def _gamma(graph):
     return e / (3 * (v - 2))  # save value calulated for subgraph to node
 
 
-def gamma(graph, radius=5, name="gamma", distance=None, verbose=True):
+def gamma(
+    graph: nx.Graph,
+    radius: int = 5,
+    name: str = "gamma",
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates connectivity gamma index for subgraph around each node if radius is set,
-    or for whole graph, if ``radius=None``.
-
-    Subgraph is generated around each node within set radius. If ``distance=None``,
-    radius will define topological distance, otherwise it uses values in ``distance``
-    attribute.
+    or for whole graph, if ``radius=None``. A subgraph is generated around each node
+    within set radius. If ``distance=None``, radius will define topological distance,
+    otherwise it uses values in ``distance`` attribute.
 
     .. math::
         \\alpha=\\frac{e}{3(v-2)}
@@ -589,30 +586,29 @@ def gamma(graph, radius=5, name="gamma", distance=None, verbose=True):
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     distance : str, optional
-        Use specified edge data key as distance.
-        For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph if radius is set
+    netx : Graph
+        A networkx.Graph object if ``radius`` is set.
     float
-        gamma index for graph if ``radius=None``
+        The gamma index for the graph if ``radius=None``.
 
     Examples
     --------
     >>> network_graph = mm.gamma(network_graph, radius=3)
-
     """
     netx = graph.copy()
 
@@ -628,25 +624,23 @@ def gamma(graph, radius=5, name="gamma", distance=None, verbose=True):
     return _gamma(netx)
 
 
-def clustering(graph, name="cluster"):
+def clustering(graph: nx.Graph, name: str = "cluster") -> nx.Graph:
     """
     Calculates the squares clustering coefficient for nodes.
-
     Wrapper around ``networkx.square_clustering``.
-
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
@@ -660,13 +654,12 @@ def clustering(graph, name="cluster"):
     return netx
 
 
-def _closeness_centrality(G, u=None, length=None, wf_improved=True, len_graph=None):
+def _closeness_centrality(graph: nx.Graph, u=None, length=None, len_graph=None):
     r"""Compute closeness centrality for nodes. Slight adaptation of networkx
     `closeness_centrality` to allow normalisation for local closeness.
-    Adapted script used in networkx.
-
-    Closeness centrality [1]_ of a node `u` is the reciprocal of the
-    average shortest path distance to `u` over all `n-1` reachable nodes.
+    Adapted script used in networkx. The closeness centrality [1]_ of a node `u` is
+    the reciprocal of the average shortest path distance to `u` over all
+    `n-1` reachable nodes.
 
     .. math::
 
@@ -675,7 +668,7 @@ def _closeness_centrality(G, u=None, length=None, wf_improved=True, len_graph=No
     where `d(v, u)` is the shortest-path distance between `v` and `u`,
     and `n` is the number of nodes that can reach `u`. Notice that the
     closeness distance function computes the incoming distance to `u`
-    for directed graphs. To use outward distance, act on `G.reverse()`.
+    for directed graphs. To use outward distance, act on `graph.reverse()`.
 
     Notice that higher values of closeness indicate higher centrality.
 
@@ -694,22 +687,19 @@ def _closeness_centrality(G, u=None, length=None, wf_improved=True, len_graph=No
     Parameters
     ----------
     G : graph
-      A NetworkX graph
-
+        A NetworkX graph.
     u : node, optional
-      Return only the value for node u
-
+        Return only the value for node ``u``.
     distance : edge attribute key, optional (default=None)
-      Use the specified edge attribute as the edge distance in shortest
-      path calculations
-
+        Use the specified edge attribute as the edge
+        distance in shortest path calculations.
     len_graph : int
-        length of complete graph
+        The length of the complete graph.
 
     Returns
     -------
-    nodes : dictionary
-      Dictionary of nodes with closeness centrality as the value.
+    nodes : dict
+        Dictionary of nodes with closeness centrality as the value.
 
     References
     ----------
@@ -732,35 +722,31 @@ def _closeness_centrality(G, u=None, length=None, wf_improved=True, len_graph=No
         path_length = nx.single_source_shortest_path_length
 
     nodes = [u]
-    closeness_centrality = {}
+    closeness_centrality_ = dict.fromkeys(nodes, 0.0)
     for n in nodes:
-        sp = dict(path_length(G, n))
+        sp = dict(path_length(graph, n))
         totsp = sum(sp.values())
-        if totsp > 0.0 and len(G) > 1:
-            closeness_centrality[n] = (len(sp) - 1.0) / totsp
+        if totsp > 0 and len(graph) > 1:
+            closeness_centrality_[n] = (len(sp) - 1) / totsp
             # normalize to number of nodes-1 in connected part
-            s = (len(sp) - 1.0) / (len_graph - 1)
-            closeness_centrality[n] *= s
-        else:
-            closeness_centrality[n] = 0.0
+            s = (len(sp) - 1) / (len_graph - 1)
+            closeness_centrality_[n] *= s
 
-    return closeness_centrality[u]
+    return closeness_centrality_[u]
 
 
 def closeness_centrality(
-    graph,
-    name="closeness",
-    weight="mm_len",
-    radius=None,
-    distance=None,
-    verbose=True,
-    **kwargs
-):
+    graph: nx.Graph,
+    name: str = "closeness",
+    weight: str = "mm_len",
+    radius: int | None = None,
+    distance: Any | None = None,
+    verbose: bool = True,
+    **kwargs,
+) -> nx.Graph:
     """
     Calculates the closeness centrality for nodes.
-
     Wrapper around ``networkx.closeness_centrality``.
-
     Closeness centrality of a node `u` is the reciprocal of the
     average shortest path distance to `u` over all `n-1` nodes within reachable nodes.
 
@@ -768,34 +754,34 @@ def closeness_centrality(
 
         C(u) = \\frac{n - 1}{\\sum_{v=1}^{n-1} d(v, u)},
 
-    where :math:`d(v, u)` is the shortest-path distance between :math:`v` and :math:`u`,
-    and :math:`n` is the number of nodes that can reach :math:`u`.
+    where :math:`d(v, u)` is the shortest-path distance between :math:`v` and
+    :math:`u`, and :math:`n` is the number of nodes that can reach :math:`u`.
 
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     weight : str (default 'mm_len')
-        attribute holding the weight of edge (e.g. length, angle)
+        The attribute holding the weight of edge (e.g. length, angle).
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     distance : str, optional
         Use specified edge data key as distance.
         For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n during ego_graph generation.
+        measure the distance from the node ``n`` during ``ego_graph`` generation.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
-    **kwargs
-        kwargs for ``networkx.closeness_centrality``
+        If ``True``, shows progress bars in loops and indication of steps.
+    **kwargs : dict
+        Keyword arguments for ``networkx.closeness_centrality``.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
@@ -820,23 +806,21 @@ def closeness_centrality(
 
 
 def betweenness_centrality(
-    graph,
-    name="betweenness",
-    mode="nodes",
-    weight="mm_len",
-    endpoints=True,
-    radius=None,
-    distance=None,
-    normalized=False,
-    verbose=True,
-    **kwargs
-):
+    graph: nx.Graph,
+    name: str = "betweenness",
+    mode: str = "nodes",
+    weight: str = "mm_len",
+    endpoints: bool = True,
+    radius: int | None = None,
+    distance: Any | None = None,
+    normalized: bool = False,
+    verbose: bool = True,
+    **kwargs,
+) -> nx.Graph:
     """
     Calculates the shortest-path betweenness centrality for nodes.
-
     Wrapper around ``networkx.betweenness_centrality`` or
     ``networkx.edge_betweenness_centrality``.
-
     Betweenness centrality of a node `v` is the sum of the
     fraction of all-pairs shortest paths that pass through `v`
 
@@ -849,7 +833,6 @@ def betweenness_centrality(
     those paths  passing through some  node `v` other than `s, t`.
     If `s = t`, :math:`\\sigma(s, t) = 1`, and if `v` in `{s, t}``,
     :math:`\\sigma(s, t|v) = 0`.
-
     Betweenness centrality of an edge `e` is the sum of the
     fraction of all-pairs shortest paths that pass through `e`
 
@@ -866,33 +849,34 @@ def betweenness_centrality(
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     mode : str, default 'nodes'
-        mode of betweenness calculation. 'node' for node-based, 'edges' for edge-based
+        The mode of betweenness calculation. ``'node'`` for node-based
+        or ``'edges'`` for edge-based.
     weight : str (default 'mm_len')
-        attribute holding the weight of edge (e.g. length, angle)
+        The attribute holding the weight of edge (e.g. length, angle).
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     distance : str, optional
         Use specified edge data key as distance.
         For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n during ego_graph generation.
+        measure the distance from the node ``n`` during ``ego_graph`` generation.
     normalized : bool, optional
-        If True the betweenness values are normalized by `2/((n-1)(n-2))`,
-        where n is the number of nodes in subgraph.
+        If ``True`` the betweenness values are normalized by `2/((n-1)(n-2))`,
+        where ``n`` is the number of nodes in a subgraph.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
-    **kwargs
-        kwargs for ``networkx.betweenness_centrality`` or
-        ``networkx.edge_betweenness_centrality``
+        If ``True``, shows progress bars in loops and indication of steps.
+    **kwargs : dict
+        Keyword argument for ``networkx.betweenness_centrality`` or
+        ``networkx.edge_betweenness_centrality``.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
@@ -905,18 +889,18 @@ def betweenness_centrality(
     netx = graph.copy()
 
     # has to be Graph not MultiGraph as MG is not supported by networkx2.4
-    G = nx.Graph()
+    graph = nx.Graph()
     for u, v, k, data in netx.edges(data=True, keys=True):
-        if G.has_edge(u, v):
-            if G[u][v][weight] > netx[u][v][k][weight]:
-                nx.set_edge_attributes(G, {(u, v): data})
+        if graph.has_edge(u, v):
+            if graph[u][v][weight] > netx[u][v][k][weight]:
+                nx.set_edge_attributes(graph, {(u, v): data})
         else:
-            G.add_edge(u, v, **data)
+            graph.add_edge(u, v, **data)
 
     if radius:
-        for n in tqdm(G, total=len(G), disable=not verbose):
+        for n in tqdm(graph, total=len(graph), disable=not verbose):
             sub = nx.ego_graph(
-                G, n, radius=radius, distance=distance
+                graph, n, radius=radius, distance=distance
             )  # define subgraph of steps=radius
             netx.nodes[n][name] = nx.betweenness_centrality(
                 sub, weight=weight, normalized=normalized, **kwargs
@@ -924,11 +908,11 @@ def betweenness_centrality(
 
     elif mode == "nodes":
         vals = nx.betweenness_centrality(
-            G, weight=weight, endpoints=endpoints, **kwargs
+            graph, weight=weight, endpoints=endpoints, **kwargs
         )
         nx.set_node_attributes(netx, vals, name)
     elif mode == "edges":
-        vals = nx.edge_betweenness_centrality(G, weight=weight, **kwargs)
+        vals = nx.edge_betweenness_centrality(graph, weight=weight, **kwargs)
         for u, v, k in netx.edges(keys=True):
             try:
                 val = vals[u, v]
@@ -936,56 +920,47 @@ def betweenness_centrality(
                 val = vals[v, u]
             netx[u][v][k][name] = val
     else:
-        raise ValueError(
-            "Mode {} is not supported. Use 'nodes' or 'edges'.".format(mode)
-        )
+        raise ValueError(f"Mode '{mode}' is not supported. Use 'nodes' or 'edges'.")
 
     return netx
 
 
 def _euclidean(n, m):
-    """helper for straightness"""
+    """Helper for straightness."""
     return math.sqrt((n[0] - m[0]) ** 2 + (n[1] - m[1]) ** 2)
 
 
-def _straightness_centrality(G, weight, normalized=True):
-    """
-    Calculates straightness centrality.
-    """
-    straightness_centrality = {}
+def _straightness_centrality(graph: nx.Graph, weight, normalized=True):
+    """Calculates straightness centrality."""
+    straightness_centrality_ = dict.fromkeys(graph.nodes(), 0.0)
 
-    for n in G.nodes():
-        straightness = 0
-        sp = nx.single_source_dijkstra_path_length(G, n, weight=weight)
+    for n in graph.nodes():
+        sp = nx.single_source_dijkstra_path_length(graph, n, weight=weight)
 
-        if len(sp) > 0 and len(G) > 1:
+        if len(sp) > 0 and len(graph) > 1:
+            straightness = 0
             for target in sp:
                 if n != target:
                     network_dist = sp[target]
                     euclidean_dist = _euclidean(n, target)
                     straightness = straightness + (euclidean_dist / network_dist)
-            straightness_centrality[n] = straightness * (1.0 / (len(G) - 1.0))
+            straightness_centrality_[n] = straightness * (1 / (len(graph) - 1))
             # normalize to number of nodes-1 in connected part
-            if normalized:
-                if len(sp) > 1:
-                    s = (len(G) - 1.0) / (len(sp) - 1.0)
-                    straightness_centrality[n] *= s
-                else:
-                    straightness_centrality[n] = 0
-        else:
-            straightness_centrality[n] = 0.0
-    return straightness_centrality
+            if normalized and len(sp) > 1:
+                s = (len(graph) - 1) / (len(sp) - 1)
+                straightness_centrality_[n] *= s
+    return straightness_centrality_
 
 
 def straightness_centrality(
-    graph,
-    weight="mm_len",
-    normalized=True,
-    name="straightness",
-    radius=None,
-    distance=None,
-    verbose=True,
-):
+    graph: nx.Graph,
+    weight: str = "mm_len",
+    normalized: bool = True,
+    name: str = "straightness",
+    radius: int | None = None,
+    distance: Any | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
     """
     Calculates the straightness centrality for nodes.
 
@@ -1001,28 +976,28 @@ def straightness_centrality(
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     weight : str (default 'mm_len')
-        attribute holding length of edge
+        The attribute holding length of edge.
     normalized : bool
-        normalize to number of nodes-1 in connected part (for local straightness
-        is recommended to set to normalized False)
+        Normalize to the number of ``nodes-1`` in the connected part
+        (for local straightness it is recommended to set to ``normalized=False``).
     name : str, optional
-        calculated attribute name
+        The calculated attribute name.
     radius: int
-        Include all neighbors of distance <= radius from n
+        Include all neighbors of distance <= radius from ``n``.
     distance : str, optional
         Use specified edge data key as distance.
         For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n during ego_graph generation.
+        measure the distance from the node ``n`` during ``ego_graph`` generation.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
@@ -1045,77 +1020,142 @@ def straightness_centrality(
     return netx
 
 
-def subgraph(
-    graph,
-    radius=5,
-    distance=None,
-    meshedness=True,
-    cds_length=True,
-    mode="sum",
-    degree="degree",
-    length="mm_len",
-    mean_node_degree=True,
-    proportion={3: True, 4: True, 0: True},
-    cyclomatic=True,
-    edge_node_ratio=True,
-    gamma=True,
-    local_closeness=True,
-    closeness_weight=None,
-    verbose=True,
-):
-    """
-    Calculates all subgraph-based characters.
+def node_density(
+    graph: nx.Graph,
+    radius: int,
+    length: str = "mm_len",
+    distance: str | None = None,
+    verbose: bool = True,
+) -> nx.Graph:
+    """Calculate the density of a node's neighbours (for all nodes)
+    on the street network defined in ``graph``.
 
-    Generating subgraph might be a time consuming activity. If we want to use the same
-    subgraph for more characters, ``subgraph`` allows this by generating subgraph and
-    then analysing it using selected options.
+    Calculated as the number of neighbouring
+    nodes / cumulative length of street network within neighbours.
+    Returns two values - an unweighted and weighted density unweighted
+    is calculated based on the number of neigbhouring nodes, whereas weighted
+    density will take into account node degree as ``k-1``.
 
+    Adapted from :cite:`dibble2017`.
 
     Parameters
     ----------
     graph : networkx.Graph
-        Graph representing street network.
-        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
     radius: int
-        radius defining the extent of subgraph
+        Include all neighbors of distance <= radius from ``n``.
+    length : str, default `mm_len`
+        The name of the attribute of segment length (geographical).
     distance : str, optional
         Use specified edge data key as distance.
         For example, setting ``distance=’weight’`` will use the edge ``weight`` to
-        measure the distance from the node n.
-    meshedness : bool, default True
-        Calculate meshedness (True/False)
-    cds_length : bool, default True
-        Calculate cul-de-sac length (True/False)
-    mode : str (defualt 'sum')
-        if ``'sum'``, calculate total cds_length, if ``'mean'`` calculate mean
-        cds_length
-    degree : str
-        name of attribute of node degree (:py:func:`momepy.node_degree`)
-    length : str, default `mm_len`
-        name of attribute of segment length (geographical)
-    mean_node_degree : bool, default True
-        Calculate mean node degree (True/False)
-    proportion : dict, default {3: True, 4: True, 0: True}
-        Calculate proportion {3: True/False, 4: True/False, 0: True/False}
-    cyclomatic : bool, default True
-        Calculate cyclomatic complexity (True/False)
-    edge_node_ratio : bool, default True
-        Calculate edge node ratio (True/False)
-    gamma : bool, default True
-        Calculate gamma index (True/False)
-    local_closeness : bool, default True
-        Calculate local closeness centrality (True/False)
-    closeness_weight : str, optional
-      Use the specified edge attribute as the edge distance in shortest
-      path calculations in closeness centrality algorithm
+        measure the distance from the node ``n`` during ``ego_graph`` generation.
     verbose : bool (default True)
-        if True, shows progress bars in loops and indication of steps
-
+        If ``True``, shows progress bars in loops and indication of steps.
 
     Returns
     -------
-    Graph
-        networkx.Graph
+    netx : Graph
+        A networkx.Graph object.
+
+    Examples
+    --------
+    >>> network_graph = mm.node_density(network_graph, radius: int=5)
+    """
+    netx = graph.copy()
+    orig_nodes_degree = Series(nx.get_node_attributes(netx, "degree"))
+    for n in tqdm(netx, total=len(netx), disable=not verbose):
+        sub = nx.ego_graph(
+            netx, n, radius=radius, distance=distance
+        )  # define subgraph of steps=radius
+        unweighted, weighted = _node_density(
+            sub, length=length, orig_nodes_degree=orig_nodes_degree
+        )
+        netx.nodes[n]["node_density"] = unweighted
+        netx.nodes[n]["node_density_weighted"] = weighted
+    return netx
+
+
+def _node_density(sub, length, orig_nodes_degree):
+    """Calculates node density for a subgraph."""
+    length_sum = sub.size(length)
+    weighted_node_data = orig_nodes_degree[list(sub.nodes)] - 1
+    unweighted_node_data = Series(1, index=weighted_node_data)
+    unweighted = (unweighted_node_data.sum() / length_sum) if length_sum else 0
+    weighted = (weighted_node_data.sum() / length_sum) if length_sum else 0
+    return unweighted, weighted
+
+
+def subgraph(
+    graph: nx.Graph,
+    radius: int = 5,
+    distance: Any | None = None,
+    meshedness: bool = True,
+    cds_length: bool = True,
+    mode: str = "sum",
+    degree: str = "degree",
+    length: str = "mm_len",
+    mean_node_degree: bool = True,
+    proportion: dict = {3: True, 4: True, 0: True},
+    cyclomatic: bool = True,
+    edge_node_ratio: bool = True,
+    gamma: bool = True,
+    local_closeness: bool = True,
+    closeness_weight: Any | None = None,
+    node_density: bool = True,
+    verbose: bool = True,
+) -> nx.Graph:
+    """
+    Calculates all subgraph-based characters. Generating subgraph might be a time
+    consuming activity. If we want to use the same subgraph for more characters,
+    ``subgraph`` allows this by generating subgraph and then analysing it using
+    selected options.
+
+    Parameters
+    ----------
+    graph : networkx.Graph
+        A Graph representing a street network.
+        Ideally generated from GeoDataFrame using :func:`momepy.gdf_to_nx`.
+    radius: int
+        Include all neighbors of distance <= radius from ``n``.
+    distance : str, optional
+        Use specified edge data key as distance. For example, setting
+        ``distance=’weight’`` will use the edge ``weight`` to
+        measure the distance from the node ``n``.
+    meshedness : bool, default True
+        Calculate meshedness (``True or ``False``).
+    cds_length : bool, default True
+        Calculate cul-de-sac length (``True or ``False``).
+    mode : str (defualt 'sum')
+        If ``'sum'``, calculate total ``cds_length``,
+        if ``'mean'`` calculate mean ``cds_length``.
+    degree : str
+        The name of attribute of node degree (:py:func:`momepy.node_degree`).
+    length : str, default `mm_len`
+        The name of the attribute of segment length (geographical).
+    mean_node_degree : bool, default True
+        Calculate mean node degree (``True or ``False``).
+    proportion : dict, default {3: True, 4: True, 0: True}
+        Calculate proportion ``{3: True/False, 4: True/False, 0: True/False}``.
+    cyclomatic : bool, default True
+        Calculate cyclomatic complexity (``True or ``False``).
+    edge_node_ratio : bool, default True
+        Calculate edge node ratio (``True or ``False``).
+    gamma : bool, default True
+        Calculate gamma index (``True or ``False``).
+    local_closeness : bool, default True
+        Calculate local closeness centrality (``True or ``False``).
+    closeness_weight : str, optional
+        Use the specified edge attribute as the edge distance in shortest
+        path calculations in closeness centrality algorithm.
+    verbose : bool (default True)
+        If ``True``, shows progress bars in loops and indication of steps.
+
+    Returns
+    -------
+    netx : Graph
+        A networkx.Graph object.
 
     Examples
     --------
@@ -1123,6 +1163,9 @@ def subgraph(
     """
 
     netx = graph.copy()
+
+    if node_density:
+        orig_nodes_degree = Series(nx.get_node_attributes(netx, "degree"))
 
     for n in tqdm(netx, total=len(netx), disable=not verbose):
         sub = nx.ego_graph(
@@ -1168,13 +1211,18 @@ def subgraph(
                 sub, n, length=closeness_weight, len_graph=lengraph
             )
 
+        if node_density:
+            unweighted, weighted = _node_density(
+                sub, length=length, orig_nodes_degree=orig_nodes_degree
+            )
+            netx.nodes[n]["node_density"] = unweighted
+            netx.nodes[n]["node_density_weighted"] = weighted
+
     return netx
 
 
-def mean_nodes(G, attr):
-    """
-    Calculates mean value of nodes attr for each edge.
-    """
-    for u, v, k in G.edges(keys=True):
-        mean = (G.nodes[u][attr] + G.nodes[v][attr]) / 2
-        G[u][v][k][attr] = mean
+def mean_nodes(graph: nx.Graph, attr: Any):
+    """Calculates mean value of nodes attr for each edge."""
+    for u, v, k in graph.edges(keys=True):
+        mean = (graph.nodes[u][attr] + graph.nodes[v][attr]) / 2
+        graph[u][v][k][attr] = mean

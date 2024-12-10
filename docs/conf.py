@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #
 # Configuration file for the Sphinx documentation builder.
 #
@@ -17,32 +16,33 @@ import sys
 
 # import sphinx_bootstrap_theme
 
-sys.path.insert(0, os.path.abspath("../.."))
+sys.path.insert(0, os.path.abspath("../"))
 
 import momepy  # noqa
 
-autodoc_mock_imports = [
-    "geopandas",
-    "networkx",
-    "numpy",
-    "pandas",
-    "rtree",
-    "scipy",
-    "scipy.spatial" "shapely",
-    "shapely.geometry",
-    "shapely.wkt",
-    "shapely.ops",
-    "libpysal",
-    "tqdm",
-    "mapclassify",
-    "osmnx",
-    "inequality",
-]
+# autodoc_mock_imports = [
+#     "geopandas",
+#     "networkx",
+#     "numpy",
+#     "pandas",
+#     "rtree",
+#     "scipy",
+#     "scipy.spatial",
+#     "shapely",
+#     "shapely.geometry",
+#     "shapely.wkt",
+#     "shapely.ops",
+#     "libpysal",
+#     "tqdm",
+#     "mapclassify",
+#     "osmnx",
+#     "inequality",
+# ]
 
 # -- Project information -----------------------------------------------------
 
 project = "momepy"
-copyright = "2018-2021, Martin Fleischmann and PySAL Developers"
+copyright = "2018-, Martin Fleischmann and PySAL Developers"  # noqa: A001
 author = "Martin Fleischmann"
 
 # The short X.Y version
@@ -76,6 +76,7 @@ extensions = [
     "myst_parser",
     "sphinx_copybutton",
     "sphinx_gallery.load_style",
+    "sphinxext.rediraffe",
 ]
 
 # nbsphinx do not use requirejs (breaks bootstrap)
@@ -98,7 +99,7 @@ master_doc = "index"
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = "en"
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -128,14 +129,17 @@ html_theme = "pydata_sphinx_theme"
 html_theme_options = {
     "github_url": "https://github.com/pysal/momepy",
     "twitter_url": "https://twitter.com/martinfleis",
-    "google_analytics_id": "UA-6190355-13",
+    "pygment_light_style": "tango",
+    "logo": {
+        "image_light": "horizontal_logo_light.svg",
+        "image_dark": "horizontal_logo_dark.svg",
+    },
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ["_static"]
-html_logo = "_static/horizontal_logo.svg"
 html_favicon = "_static/favicon.png"
 
 
@@ -181,7 +185,13 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "momepy.tex", "momepy Documentation", "Martin Fleischmann", "manual")
+    (
+        master_doc,
+        "momepy.tex",
+        "momepy Documentation",
+        "Martin Fleischmann",
+        "manual",
+    )
 ]
 
 
@@ -227,15 +237,31 @@ epub_title = project
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ["search.html"]
 
+# Add redirect for previously existing pages,
+# each item is like `(from_old, to_new)`
+
+rediraffe_redirects = {
+    "user_guide/elements/preprocessing.ipynb": "user_guide/preprocessing/simple_preprocessing.ipynb",  # noqa: E501
+}
 
 # -- Extension configuration -------------------------------------------------
+intersphinx_mapping = {
+    "libpysal": (
+        "https://pysal.org/libpysal/",
+        "https://pysal.org/libpysal//objects.inv",
+    ),
+}
+
+
 # Generate the API documentation when building
 autosummary_generate = True
 autosummary_imported_members = True
 numpydoc_show_class_members = True
 class_members_toctree = True
 numpydoc_show_inherited_class_members = True
+numpydoc_class_members_toctree = False
 numpydoc_use_plots = True
+autodoc_typehints = "none"
 
 nbsphinx_prolog = r"""
 {% set docname = env.doc2path(env.docname, base=None) %}
@@ -251,7 +277,7 @@ nbsphinx_prolog = r"""
         | Interactive online version: :raw-html:`<a href="https://mybinder.org/v2/gh/pysal/momepy/master?urlpath=lab/tree/docs/{{ docname }}"><img alt="Binder badge" src="https://mybinder.org/badge_logo.svg" style="vertical-align:text-bottom"></a>`
 
         __ https://github.com/pysal/momepy/blob/master/docs/{{ docname }}
-"""
+"""  # noqa: E501
 
 
 def linkcode_resolve(domain, info):
@@ -276,4 +302,14 @@ def linkcode_resolve(domain, info):
     except Exception:
         filename = info["module"].replace(".", "/") + ".py"
     tag = "main" if "+" in release else ("v" + release)
-    return "https://github.com/pysal/momepy/blob/%s/%s" % (tag, filename)
+    return f"https://github.com/pysal/momepy/blob/{tag}/{filename}"
+
+
+# Define the canonical URL if you are using a custom domain on Read the Docs
+html_baseurl = os.environ.get("READTHEDOCS_CANONICAL_URL", "")
+
+# Tell Jinja2 templates the build is running on Read the Docs
+if os.environ.get("READTHEDOCS", "") == "True":
+    if "html_context" not in globals():
+        html_context = {}
+    html_context["READTHEDOCS"] = True
